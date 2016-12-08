@@ -19,8 +19,6 @@ public:
 	virtual ~TcpServer();
 	void start();
 private:
-	void _beginWatchReadEvent(TcpConnection* con);
-	void _watchWriteEvent(TcpConnection* con, bool bWatch);
 	void _handleEpollEvent(TcpConnection* con, bool canRead, bool canWrite);
 	void _onNewConnection(TcpConnection* newCon);
 private:

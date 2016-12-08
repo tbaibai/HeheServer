@@ -14,19 +14,62 @@ TcpConnection::~TcpConnection() {
 	// TODO Auto-generated destructor stub
 }
 
+void TcpConnection::beginWatchReadEvent()
+{
+	watchEvents_ = EPOLLIN;
+	_modEpollEvent(EPOLL_CTL_ADD);
+}
+
+void TcpConnection::_watchWriteEvent(bool bWatch)
+{
+	if (bWatch){
+		watchEvents_ |= EPOLLOUT;
+	}
+	else{
+		watchEvents_ &= (~EPOLLOUT);
+	}
+	_modEpollEvent(EPOLL_CTL_MOD);
+}
+
+void TcpConnection::_watchReadEvent(bool bWatch)
+{
+	if (bWatch){
+		watchEvents_ |= EPOLLIN;
+	}
+	else{
+		watchEvents_ &= (~EPOLLIN);
+	}
+	_modEpollEvent(EPOLL_CTL_MOD);
+}
+
+void TcpConnection::_modEpollEvent(int epollOpt)
+{
+	//不需要主动调用EPOLL_CTL_DEL操作,close调用时内核会自动移除监听
+	struct epoll_event event;
+	bzero(&event, sizeof event);
+	event.events = watchEvents_;
+	event.data.ptr = this;//让操作系统持有了con对象的指针,则必须在con销毁时保证对应的fd已关闭
+	epoll_ctl(epollFd_, epollOpt, fd_, &event);
+}
+
 void TcpConnection::handleEpollEvent(bool canRead, bool canWrite){
 	if (canRead){//读数据至对应的buffer； 处理错误
 		while(true){
 			uint8_t buf[kSocketBufSize];
-			size_t nread = read(fd_, buf, kSocketBufSize);
+			ssize_t nread = read(fd_, buf, kSocketBufSize);
 			if (nread > 0){
 				uint8_t* data = (uint8_t*)malloc(nread);
 				memcpy(data, buf, nread);
-				auto data_node = new BufferNode();
-				data_node->data = data;
-				data_node->size = nread;
-				//TODO 放入生产-消费队列 (必须限制队列的节点数量,以免被客户端异常大量发包耗尽内存)
-
+				BufferNode data_node;
+				data_node.data = data;
+				data_node.size = nread;
+				//放入生产-消费队列 (必须限制队列的节点数量,以免被客户端异常大量发包耗尽内存)
+				bool ret = readBufQueue_.push(data_node);
+				assert(ret);
+				if (readBufQueue_.isFull()){
+					_watchReadEvent(false);
+					break;
+				}
 			}
 			else if (nread == 0) {//客户端关闭连接
 				close(fd_);
@@ -50,7 +93,7 @@ void TcpConnection::handleEpollEvent(bool canRead, bool canWrite){
 		while(true){
 			uint8_t* buf;
 			size_t size;
-			size_t nWrite = write(fd_, buf, size);
+			ssize_t nWrite = write(fd_, buf, size);
 			if(nWrite > 0){
 				if (nWrite < size){//算是一种优化,节省下一次返回EAGAIN的write调用
 					//TODO 调整该节点的offset

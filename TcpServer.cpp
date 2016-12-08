@@ -48,7 +48,12 @@ TcpServer::TcpServer(int port) {
 	}
 	epollFd_ = epoll_fd;
 
-	_beginWatchReadEvent(nullptr);
+	struct epoll_event event;
+	bzero(&event, sizeof event);
+	event.events = EPOLLIN;
+	event.data.ptr = nullptr;//不指向任何tcpconnection
+	epoll_ctl(epollFd_, EPOLL_CTL_ADD, listenFd_, &event);
+	++curEpollFdNum_;
 }
 
 TcpServer::~TcpServer() {
@@ -115,8 +120,9 @@ void TcpServer::_handleEpollEvent(TcpConnection* con, bool canRead, bool canWrit
 
 				char buf[32];
 				inet_ntop(AF_INET, &addr.sin_addr, buf, static_cast<socklen_t>(sizeof buf));
-				auto newCon = new TcpConnection(connfd, buf, be16toh(addr.sin_port));
-				_beginWatchReadEvent(newCon);
+				auto newCon = new TcpConnection(connfd, epollFd_, buf, be16toh(addr.sin_port));
+				newCon->beginWatchReadEvent();
+				++curEpollFdNum_;
 				_onNewConnection(newCon);
 			}
 		}
@@ -128,32 +134,3 @@ void TcpServer::_onNewConnection(TcpConnection* newCon)
 	cout << "new con " << newCon->getIp() << ":"<< newCon->getPort() << endl;
 }
 
-void TcpServer::_beginWatchReadEvent(TcpConnection* con)
-{
-	int fd;
-	if (con == nullptr){
-		fd = listenFd_;
-	}
-	else{
-		fd = con->getFd();
-	}
-	struct epoll_event event;
-	bzero(&event, sizeof event);
-	event.events = EPOLLIN;
-	event.data.ptr = con;//让操作系统持有了con对象的指针,则必须在con销毁时保证对应的fd已关闭
-	epoll_ctl(epollFd_, EPOLL_CTL_ADD, fd, &event);
-	++curEpollFdNum_;
-}
-
-void TcpServer::_watchWriteEvent(TcpConnection* con, bool bWatch)
-{
-	if (con == nullptr){
-		//LogError(...)
-		return;
-	}
-	struct epoll_event event;
-	bzero(&event, sizeof event);
-	event.events = bWatch ? (EPOLLIN | EPOLLOUT) : EPOLLIN;
-	event.data.ptr = con;
-	epoll_ctl(epollFd_, EPOLL_CTL_MOD, con->getFd(), &event);
-}

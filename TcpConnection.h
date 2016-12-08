@@ -21,8 +21,8 @@ public:
 	TcpConnection(){
 
 	};
-	TcpConnection(int fd, const std::string& ip, int port)
-	: fd_(fd), ip_(ip), port_(port){
+	TcpConnection(int fd, int epollFd, const std::string& ip, int port)
+	: fd_(fd), epollFd_(epollFd), ip_(ip), port_(port){
 
 	}
 	virtual ~TcpConnection();
@@ -35,9 +35,16 @@ public:
 	int getPort(){
 		return port_;
 	}
+	void beginWatchReadEvent();
 	void handleEpollEvent(bool canRead, bool canWrite);
 private:
+	void _watchWriteEvent(bool bWatch);
+	void _watchReadEvent(bool bWatch);
+	void _modEpollEvent(int epollOpt);
+private:
 	int fd_ = -1;
+	int epollFd_ = -1;
+	uint32_t watchEvents_ = 0;
 	std::string ip_;
 	int port_ = -1;
 	CircularFifo<BufferNode, 128> readBufQueue_;
