@@ -9,6 +9,8 @@
 template<typename Element, size_t size>
 class CircularFifo{
 public:
+	CircularFifo() : tail_(0), head_(0){}
+
 	bool push(const Element& item){
 		auto current_tail = tail_.load();
 		auto next_tail = _increment(current_tail);
@@ -44,8 +46,8 @@ private:
 	}
 private:
 	Element array_[size + 1];
-	std::atomic <size_t>  tail_ = 0;
-	std::atomic <size_t>  head_ = 0;
+	std::atomic <size_t>  tail_;
+	std::atomic <size_t>  head_;
 };
 
 #endif

@@ -9,10 +9,6 @@
 #include "LinuxHeads.h"
 using namespace std;
 static const int kSocketBufSize = 64 * 1024;//linux系统默认socket缓冲区大小
-TcpConnection::TcpConnection() {
-	// TODO Auto-generated constructor stub
-
-}
 
 TcpConnection::~TcpConnection() {
 	// TODO Auto-generated destructor stub

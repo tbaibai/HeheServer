@@ -60,7 +60,7 @@ TcpServer::~TcpServer() {
 }
 
 void TcpServer::start(){
-	thread_ = new thread([]{
+	thread_ = new thread([this]{
 		while(true){
 			vector<struct epoll_event> eventsResult(curEpollFdNum_);
 			int numEvents = epoll_wait(epollFd_, (epoll_event*)&(eventsResult[0]), curEpollFdNum_, -1);
@@ -154,6 +154,6 @@ void TcpServer::_watchWriteEvent(TcpConnection* con, bool bWatch)
 	struct epoll_event event;
 	bzero(&event, sizeof event);
 	event.events = bWatch ? (EPOLLIN | EPOLLOUT) : EPOLLIN;
-	event.data.ptr = con->getFd();
+	event.data.ptr = con;
 	epoll_ctl(epollFd_, EPOLL_CTL_MOD, con->getFd(), &event);
 }

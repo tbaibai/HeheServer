@@ -28,7 +28,7 @@ int main() {
 	cout << "Hehe Server!" << endl;
 	TcpServer server(7011);
 	server.start();//启动网络线程执行epoll轮询
-	while(getchar() != "q"){
+	while(getchar() != 'q'){
 		//TODO game loop
 	}
 	return 0;
