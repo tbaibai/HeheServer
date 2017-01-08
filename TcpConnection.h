@@ -9,6 +9,7 @@
 #define TCPCONNECTION_H_
 #include <string>
 #include "CircularFifo.h"
+#include "DoubleBufferQueue.h"
 
 struct BufferNode{
 	uint8_t* data = nullptr;
@@ -48,7 +49,7 @@ private:
 	std::string ip_;
 	int port_ = -1;
 	CircularFifo<BufferNode, 128> readBufQueue_;
-	CircularFifo<BufferNode, 128> writeBufQueue_;//TODO 不应该使用CircularFifo,应使用线程安全的队列或者退化的对于2线程安全的队列
+	DoubleBufferQueue<BufferNode> writeBufQueue_;
 };
 
 #endif /* TCPCONNECTION_H_ */
